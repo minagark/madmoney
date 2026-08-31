@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mad Money Buy/Sell Bot</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px 5px;
+            cursor: pointer;
+        }
+
+        #status {
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        #message {
+            background: #eee;
+            padding: 15px;
+            margin-top: 20px;
+            white-space: pre;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>Mad Money Buy/Sell Bot</h1>
+
+<p id="status">Connecting...</p>
+
+<button onclick="sendBuyOrder()">Send Buy Order Now</button>
+
+<div id="message"></div>
+
+<script>
+
+    const socketUrl =
+        "ws://10.23.131.137:8099/madmoney";
+
+    const socket = new WebSocket(socketUrl);
+
+    socket.onopen = function () {
+        document.getElementById("status").textContent =
+            "Connected to " + socketUrl;
+    };
+
+    socket.onclose = function () {
+        document.getElementById("status").textContent =
+            "Disconnected";
+    };
+
+    socket.onerror = function () {
+        document.getElementById("status").textContent =
+            "WebSocket error";
+    };
+
+    // Top 50 fantasy football players from last season
+    const usernames = [
+        "ChristianMcCaffrey", "CeeDeeLamb", "TyreekHill", "BijanRobinson", "BreecHall",
+        "AmonRaStBrown", "JaMarrChase", "AustinEkeler", "JustinJefferson", "GarrettWilson",
+        "TravisKelce", "JahmyrGibbs", "JoshJacobs", "SaquonBarkley", "StefonDiggs",
+        "PuIcerJonathanTaylor", "DeVontaSmith", "DKMetcalf", "DavanteAdams", "AJBrown",
+        "KenethWalker", "NickChubb", "RachaadWhite", "DeAndreHopkins", "TerryMcLaurin",
+        "JaylenWaddle", "TonyPollard", "MikeEvans", "ChrisOlave", "DrakeLondon",
+        "RhamondreStevenson", "JavonteWilliams", "MilesSanders", "DeeboSamuel", "KyrenWilliams",
+        "TravisEtienne", "IsiahPacheco", "GeorgePickens", "CalvinRidley", "DavidMontgomery",
+        "AaronJones", "DiontaeJohnson", "AmariCooper", "MarquiseBrown", "JerryJeudy",
+        "AlvinKamara", "JamesCook", "TankDell", "JordanAddison", "RomeOdunze"
+    ];
+
+    const symbols = ["NVDA", "THEO", "PURR", "JAAKD"];
+
+    function randomFrom(list) {
+        return list[Math.floor(Math.random() * list.length)];
+    }
+
+    function sendBuyOrder() {
+
+        const order = {
+            username: randomFrom(usernames),
+            type: "BUY_ORDER",
+            symbol: randomFrom(symbols),
+            numberOfStocks: Math.floor(Math.random() * 100) + 1,
+            price: Math.round((Math.random() * 490 + 10) * 100) / 100
+        };
+
+        const json = JSON.stringify(order);
+
+        socket.send(json);
+
+        document.getElementById("message").textContent =
+            "Sent:\n\n" +
+            JSON.stringify(order, null, 2);
+    }
+
+    setInterval(sendBuyOrder, 20000);
+
+</script>
+
+</body>
+</html>
