@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mad Money Order Receiver</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px 5px;
+            cursor: pointer;
+        }
+
+        #status {
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 6px 10px;
+            text-align: left;
+        }
+
+        th {
+            background: #eee;
+        }
+
+        tr.buy {
+            color: #1a7f37;
+        }
+
+        tr.sell {
+            color: #c0392b;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>Mad Money Order Receiver</h1>
+
+<p id="status">Connecting...</p>
+
+<button onclick="clearOrders()">Clear History</button>
+
+<h2>Orders</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>Username</th>
+            <th>Type</th>
+            <th>Symbol</th>
+            <th># Stocks</th>
+            <th>Price</th>
+        </tr>
+    </thead>
+    <tbody id="orders"></tbody>
+</table>
+
+<script>
+
+    const STORAGE_KEY = "madMoneyOrderHistory";
+    const socketUrl = "ws://10.23.131.137:8099/madmoney";
+
+    const socket = new WebSocket(socketUrl);
+
+    socket.onopen = function () {
+        document.getElementById("status").textContent =
+            "Connected to " + socketUrl;
+    };
+
+    socket.onclose = function () {
+        document.getElementById("status").textContent =
+            "Disconnected";
+    };
+
+    socket.onerror = function () {
+        document.getElementById("status").textContent =
+            "WebSocket error";
+    };
+
+    socket.onmessage = function (event) {
+        let order;
+
+        try {
+            order = JSON.parse(event.data);
+        } catch (error) {
+            return;
+        }
+
+        if (order.type !== "BUY_ORDER" && order.type !== "SELL_ORDER") {
+            return;
+        }
+
+        order.receivedAt = new Date().toISOString();
+
+        const history = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        history.push(order);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+
+        renderOrders(history);
+    };
+
+    function renderOrders(history) {
+        const body = document.getElementById("orders");
+        body.innerHTML = "";
+
+        const reversedHistory = [...history].reverse();
+
+        reversedHistory.forEach(function (order) {
+            const row = document.createElement("tr");
+            row.className = order.type === "BUY_ORDER" ? "buy" : "sell";
+
+            row.innerHTML =
+                "<td>" + new Date(order.receivedAt).toLocaleTimeString() + "</td>" +
+                "<td>" + order.username + "</td>" +
+                "<td>" + (order.type === "BUY_ORDER" ? "BUY" : "SELL") + "</td>" +
+                "<td>" + order.symbol + "</td>" +
+                "<td>" + order.numberOfStocks + "</td>" +
+                "<td>" + order.price + "</td>";
+
+            body.appendChild(row);
+        });
+    }
+
+    function clearOrders() {
+        localStorage.removeItem(STORAGE_KEY);
+        renderOrders([]);
+    }
+
+    renderOrders(JSON.parse(localStorage.getItem(STORAGE_KEY)) || []);
+
+</script>
+
+</body>
+</html>
