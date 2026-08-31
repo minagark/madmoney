@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Stock Generator</title>
+</head>
+<body>
+    <h1>McDonald's (MCD) Stock Price Generator</h1>
+    <p>Latest price: <span id="price">--</span></p>
+    <button onclick="clearHistory()">Clear History</button>
+
+    <h2>History</h2>
+    <ul id="history"></ul>
+
+    <script>
+        const STORAGE_KEY = 'mcdStockHistory';
+        const socketUrl = "ws://10.23.131.137:8099/madmoney";
+
+        const socket = new WebSocket(socketUrl);
+
+        socket.onopen = () => console.log('WebSocket connected');
+        socket.onerror = (event) => console.error('WebSocket error:', event);
+        socket.onclose = (event) => console.warn(`WebSocket closed: code=${event.code} reason=${event.reason}`);
+
+        function generatePrice() {
+            const min = 90;
+            const max = 110;
+            const price = new Number((Math.random() * (max - min) + min).toFixed(2));
+
+            const stock = {
+                type: "STOCK_PRICE",
+                symbol: "MCD",
+            //    name: "McDonalds",
+                price,
+            };
+
+            document.getElementById('price').textContent = price;
+
+            const history = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+            history.push(stock);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+
+            renderHistory(history);
+
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify(stock));
+            }
+        }
+
+        function renderHistory(history) {
+            const list = document.getElementById('history');
+            list.innerHTML = '';
+            const reversedHistory = [...history].reverse();
+            reversedHistory.forEach(entry => {
+                const item = document.createElement('li');
+                item.textContent = `${entry.symbol} (${entry.type}): $${entry.price}`;
+                list.appendChild(item);
+            });
+        }
+
+        function clearHistory() {
+            localStorage.removeItem(STORAGE_KEY);
+            renderHistory([]);
+        }
+
+        renderHistory(JSON.parse(localStorage.getItem(STORAGE_KEY)) || []);
+        setInterval(generatePrice, 5000);
+        generatePrice();
+    </script>
+</body>
+</html>
