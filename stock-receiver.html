@@ -2,94 +2,496 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Mad Money Receiver</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mad Money Market Board</title>
 
     <style>
+        :root {
+            --bg: #07111f;
+            --panel: rgba(10, 18, 34, 0.88);
+            --panel-border: rgba(148, 163, 184, 0.18);
+            --text: #e5eefb;
+            --muted: #91a4c7;
+            --good: #34d399;
+            --bad: #fb7185;
+            --accent: #60a5fa;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            min-height: 100%;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 50px auto;
+            margin: 0;
+            color: var(--text);
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(96, 165, 250, 0.16), transparent 34%),
+                radial-gradient(circle at top right, rgba(52, 211, 153, 0.12), transparent 28%),
+                linear-gradient(180deg, #050b15 0%, var(--bg) 100%);
         }
 
-        #status {
-            font-weight: bold;
-            margin-bottom: 30px;
+        .shell {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 28px 20px 40px;
         }
 
-        #symbol {
-            font-size: 36px;
-            font-weight: bold;
+        .hero {
+            display: grid;
+            gap: 14px;
+            margin-bottom: 22px;
         }
 
-        #price {
-            font-size: 64px;
-            margin: 20px 0;
+        h1 {
+            margin: 0;
+            font-size: clamp(2rem, 4vw, 3.8rem);
+            letter-spacing: -0.04em;
         }
 
-        #json {
-            margin-top: 30px;
-            background: #eee;
-            padding: 15px;
-            white-space: pre;
+        .subtitle {
+            margin: 0;
+            max-width: 72ch;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .status-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            border: 1px solid var(--panel-border);
+            border-radius: 18px;
+            background: rgba(10, 18, 34, 0.72);
+            backdrop-filter: blur(12px);
+            margin-bottom: 22px;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 999px;
+            background: var(--muted);
+            box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.35);
+        }
+
+        .dot.live {
+            background: var(--good);
+            animation: pulse 1.6s infinite;
+        }
+
+        .dot.warn {
+            background: #fbbf24;
+        }
+
+        .meta {
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 18px;
+        }
+
+        .card {
+            border: 1px solid var(--panel-border);
+            border-radius: 22px;
+            background: var(--panel);
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+            overflow: hidden;
+        }
+
+        .card-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: baseline;
+            padding: 16px 18px 10px;
+        }
+
+        .card-title {
+            margin: 0;
+            font-size: 1.25rem;
+            letter-spacing: 0.03em;
+        }
+
+        .card-subtitle {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        .card-body {
+            padding: 0 10px 12px;
+        }
+
+        .chart-wrap {
+            position: relative;
+            height: 320px;
+        }
+
+        .empty {
+            color: var(--muted);
+            padding: 18px 4px 0;
+        }
+
+        .feed {
+            margin-top: 18px;
+            border: 1px solid var(--panel-border);
+            border-radius: 18px;
+            background: rgba(10, 18, 34, 0.65);
+            padding: 14px 16px;
+            color: var(--muted);
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.45);
+            }
+            70% {
+                box-shadow: 0 0 0 12px rgba(52, 211, 153, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+            }
         }
     </style>
 </head>
 
 <body>
 
-<h1>Mad Money Receiver</h1>
+<div class="shell">
+    <div class="hero">
+        <h1>Mad Money Market Board</h1>
+        <p class="subtitle">
+            Live candlestick dashboard fed by <span id="socketUrlLabel">ws://10.23.131.137:8099/madmoney</span>.
+            Every 10 prices becomes one synthetic trading day for each ticker.
+        </p>
+    </div>
 
-<p id="status">Connecting...</p>
+    <div class="status-bar">
+        <div class="status">
+            <span id="statusDot" class="dot"></span>
+            <span id="status">Connecting...</span>
+        </div>
+        <div class="meta" id="summary">Waiting for ticker data.</div>
+    </div>
 
-<div id="symbol">Waiting...</div>
+    <div id="charts" class="charts"></div>
 
-<div id="price"></div>
-
-<div id="timestamp"></div>
-
-<div id="json"></div>
+    <div id="feed" class="feed">Incoming messages will appear here.</div>
+</div>
 
 <script>
 
-    const socketUrl =
-        "ws://10.23.131.137:8099/madmoney";
-
+    const socketUrl = "ws://10.23.131.137:8099/madmoney";
     const socket = new WebSocket(socketUrl);
 
+    document.getElementById("socketUrlLabel").textContent = socketUrl;
+
+    const chartsRoot = document.getElementById("charts");
+    const statusText = document.getElementById("status");
+    const statusDot = document.getElementById("statusDot");
+    const summaryText = document.getElementById("summary");
+    const feed = document.getElementById("feed");
+
+    const tickerState = new Map();
+
+    function createTickerCard(symbol) {
+        const card = document.createElement("section");
+        card.className = "card";
+        card.id = `card-${symbol}`;
+
+        card.innerHTML = `
+            <div class="card-head">
+                <div>
+                    <h2 class="card-title">${symbol}</h2>
+                    <p class="card-subtitle">10 prices = 1 day</p>
+                </div>
+                <div class="card-subtitle" id="stats-${symbol}">0 ticks</div>
+            </div>
+            <div class="card-body">
+                <div class="chart-wrap">
+                    <canvas id="canvas-${symbol}"></canvas>
+                </div>
+                <div class="empty" id="empty-${symbol}">Waiting for the first price.</div>
+            </div>
+        `;
+
+        chartsRoot.appendChild(card);
+
+        const canvas = document.getElementById(`canvas-${symbol}`);
+        const context = canvas.getContext("2d");
+
+        tickerState.set(symbol, {
+            prices: [],
+            candles: [],
+            activeCandle: null,
+            canvas,
+            context,
+            statsNode: document.getElementById(`stats-${symbol}`),
+            emptyNode: document.getElementById(`empty-${symbol}`),
+            resizeObserver: null
+        });
+
+        const state = tickerState.get(symbol);
+
+        state.resizeObserver = new ResizeObserver(function () {
+            renderTicker(state);
+        });
+
+        state.resizeObserver.observe(canvas);
+        renderTicker(state);
+    }
+
+    function getTickerState(symbol) {
+        if (!tickerState.has(symbol)) {
+            createTickerCard(symbol);
+        }
+
+        return tickerState.get(symbol);
+    }
+
+    function formatPrice(price) {
+        return Number(price).toFixed(2);
+    }
+
+    function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+    }
+
+    function fitCanvas(canvas, context) {
+        const width = Math.max(1, Math.floor(canvas.clientWidth));
+        const height = Math.max(1, Math.floor(canvas.clientHeight));
+        const ratio = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+
+        if (canvas.width !== width * ratio || canvas.height !== height * ratio) {
+            canvas.width = width * ratio;
+            canvas.height = height * ratio;
+            context.setTransform(ratio, 0, 0, ratio, 0, 0);
+        }
+
+        return { width, height };
+    }
+
+    function getVisibleCandles(state) {
+        const candles = state.candles.slice();
+
+        if (state.activeCandle) {
+            candles.push({
+                x: state.activeCandle.x,
+                o: state.activeCandle.o,
+                h: state.activeCandle.h,
+                l: state.activeCandle.l,
+                c: state.activeCandle.c
+            });
+        }
+
+        return candles;
+    }
+
+    function renderTicker(state) {
+        const canvas = state.canvas;
+        const context = state.context;
+        const { width, height } = fitCanvas(canvas, context);
+        const candles = getVisibleCandles(state);
+
+        context.clearRect(0, 0, width, height);
+
+        const padTop = 18;
+        const padRight = 18;
+        const padBottom = 28;
+        const padLeft = 18;
+        const plotWidth = Math.max(1, width - padLeft - padRight);
+        const plotHeight = Math.max(1, height - padTop - padBottom);
+
+        context.fillStyle = "rgba(255, 255, 255, 0.02)";
+        context.fillRect(0, 0, width, height);
+
+        for (let i = 0; i <= 4; i += 1) {
+            const y = padTop + (plotHeight * i) / 4;
+            context.strokeStyle = "rgba(148, 163, 184, 0.08)";
+            context.beginPath();
+            context.moveTo(padLeft, y);
+            context.lineTo(width - padRight, y);
+            context.stroke();
+        }
+
+        context.fillStyle = "#91a4c7";
+        context.font = "12px Segoe UI, Tahoma, Geneva, Verdana, sans-serif";
+        context.textAlign = "left";
+        context.textBaseline = "top";
+
+        if (!candles.length) {
+            context.fillText("Waiting for price data", padLeft, padTop);
+            return;
+        }
+
+        const values = candles.flatMap(function (candle) {
+            return [candle.h, candle.l];
+        });
+        const minPrice = Math.min.apply(null, values);
+        const maxPrice = Math.max.apply(null, values);
+        const range = Math.max(0.01, maxPrice - minPrice);
+        const candleWidth = clamp(plotWidth / Math.max(4, candles.length * 1.6), 8, 28);
+        const gap = candleWidth * 0.6;
+        const step = candleWidth + gap;
+        const totalWidth = step * candles.length - gap;
+        const startX = padLeft + Math.max(0, (plotWidth - totalWidth) / 2);
+
+        context.textAlign = "right";
+
+        [maxPrice, (maxPrice + minPrice) / 2, minPrice].forEach(function (value, index) {
+            const y = padTop + (plotHeight * index) / 2;
+            context.fillText(formatPrice(value), padLeft - 6, y - 7);
+        });
+
+        candles.forEach(function (candle, index) {
+            const x = startX + index * step + candleWidth / 2;
+            const openY = padTop + ((maxPrice - candle.o) / range) * plotHeight;
+            const closeY = padTop + ((maxPrice - candle.c) / range) * plotHeight;
+            const highY = padTop + ((maxPrice - candle.h) / range) * plotHeight;
+            const lowY = padTop + ((maxPrice - candle.l) / range) * plotHeight;
+            const isUp = candle.c >= candle.o;
+            const color = isUp ? "#34d399" : "#fb7185";
+            const bodyTop = Math.min(openY, closeY);
+            const bodyHeight = Math.max(2, Math.abs(closeY - openY));
+
+            context.strokeStyle = color;
+            context.lineWidth = 2;
+            context.beginPath();
+            context.moveTo(x, highY);
+            context.lineTo(x, lowY);
+            context.stroke();
+
+            context.fillStyle = color;
+            context.fillRect(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
+        });
+
+        context.fillStyle = "#91a4c7";
+        context.textAlign = "center";
+        context.textBaseline = "bottom";
+
+        const latest = candles[candles.length - 1];
+        context.fillText(`Last ${formatPrice(latest.c)}  Open ${formatPrice(latest.o)}  High ${formatPrice(latest.h)}  Low ${formatPrice(latest.l)}`, width / 2, height - 6);
+    }
+
+    function updateStatus(message, mode) {
+        statusText.textContent = message;
+        statusDot.className = `dot ${mode || ""}`.trim();
+    }
+
+    function updateSummary() {
+        const totalCandles = Array.from(tickerState.values())
+            .reduce((total, state) => total + state.candles.length, 0);
+        const totalTickers = tickerState.size;
+        summaryText.textContent = `${totalTickers} ticker${totalTickers === 1 ? "" : "s"} active, ${totalCandles} candle${totalCandles === 1 ? "" : "s"} built.`;
+    }
+
+    function appendFeedLine(text) {
+        const stamp = new Date().toLocaleTimeString();
+        feed.textContent = `[${stamp}] ${text}\n` + feed.textContent;
+    }
+
+    function ingestPrice(symbol, price) {
+        const state = getTickerState(symbol);
+        state.prices.push(price);
+
+        if (!state.activeCandle) {
+            const candleIndex = state.candles.length + 1;
+            state.activeCandle = {
+                x: candleIndex,
+                o: price,
+                h: price,
+                l: price,
+                c: price,
+                count: 0
+            };
+        }
+
+        state.activeCandle.h = Math.max(state.activeCandle.h, price);
+        state.activeCandle.l = Math.min(state.activeCandle.l, price);
+        state.activeCandle.c = price;
+        state.activeCandle.count += 1;
+
+        const isCompleteDay = state.activeCandle.count === 10;
+
+        if (isCompleteDay) {
+            state.candles.push({
+                x: state.activeCandle.x,
+                o: state.activeCandle.o,
+                h: state.activeCandle.h,
+                l: state.activeCandle.l,
+                c: state.activeCandle.c
+            });
+            state.activeCandle = null;
+        }
+
+        renderTicker(state);
+
+        state.statsNode.textContent = `${state.prices.length} ticks, ${state.candles.length} closed day${state.candles.length === 1 ? "" : "s"}${state.activeCandle ? ", 1 forming" : ""}`;
+        state.emptyNode.style.display = state.prices.length ? "none" : "block";
+
+        updateSummary();
+    }
+
     socket.onopen = function () {
-        document.getElementById("status").textContent =
-            "Connected to " + socketUrl;
+        updateStatus("Connected to " + socketUrl, "live");
+        appendFeedLine("Socket connected.");
     };
 
     socket.onclose = function () {
-        document.getElementById("status").textContent =
-            "Disconnected";
+        updateStatus("Disconnected", "warn");
+        appendFeedLine("Socket disconnected.");
     };
 
     socket.onerror = function () {
-        document.getElementById("status").textContent =
-            "WebSocket error";
+        updateStatus("WebSocket error", "warn");
+        appendFeedLine("WebSocket error.");
     };
 
     socket.onmessage = function (event) {
+        let stock;
 
-        const stock = JSON.parse(event.data);
+        try {
+            stock = JSON.parse(event.data);
+        } catch (error) {
+            appendFeedLine("Ignored non-JSON message.");
+            return;
+        }
 
         if (stock.type !== "STOCK_PRICE") {
             return;
         }
 
-        document.getElementById("symbol").textContent =
-            stock.symbol;
+        const symbol = String(stock.symbol || "UNKNOWN").trim();
+        const price = Number(stock.price);
 
-        document.getElementById("price").textContent =
-            "$" + stock.price.toFixed(2);
+        if (!symbol || Number.isNaN(price)) {
+            appendFeedLine("Ignored malformed stock payload.");
+            return;
+        }
 
-        document.getElementById("timestamp").textContent =
-            stock.timestamp;
-
-        document.getElementById("json").textContent =
-            JSON.stringify(stock, null, 2);
+        ingestPrice(symbol, price);
+        appendFeedLine(`${symbol} ${formatPrice(price)}`);
     };
 
 </script>
