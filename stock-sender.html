@@ -44,27 +44,22 @@
 <p id="status">Connecting...</p>
 
 <label>
-    Symbol:
+    Message:
     <input id="symbol" value="NVDA">
 </label>
 
 <br>
 
-<label>
-    Price:
-    <input id="price" type="number" step="0.01" value="180.25">
-</label>
-
 <br>
 
-<button onclick="sendStockPrice()">Send Stock Price</button>
+<button onclick="sendStockPrice()">Send Message</button>
 
 <div id="message"></div>
 
 <script>
 
     const socketUrl =
-        "ws://localhost:8088/madmoney";
+        "ws://10.23.131.137:8099/madmoney";
 
     const socket = new WebSocket(socketUrl);
 
@@ -86,8 +81,7 @@
     function sendStockPrice() {
 
         const stock = {
-            type: "STOCK_PRICE",
-            symbol: document.getElementById("symbol").value
+            type: "STOCK_PRICE"
         };
 
         const json = JSON.stringify(stock);
