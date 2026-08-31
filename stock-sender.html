@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Mad Money  Sender</title>
+    <title>Mad Money Stock Sender</title>
 
     <style>
         body {
@@ -81,7 +81,8 @@
     function sendStockPrice() {
 
         const stock = {
-            type: "STOCK_PRICE"
+            type: "STOCK_PRICE",
+			symbol: document.getElementById("symbol").value,
         };
 
         const json = JSON.stringify(stock);
